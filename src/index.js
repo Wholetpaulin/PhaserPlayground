@@ -5,6 +5,9 @@ import background from './assets/background.png';
 import multiButton from './assets/multiButton.png';
 import singleButton from './assets/singleButton.png';
 import ball_img from './assets/ball.png';
+import boop_sound from './assets/boop.mp3';
+import crack_sound from './assets/crack.mp3';
+
 
 // There's a cleaner way than to use globals like this... What is it?
 let cursor;
@@ -18,8 +21,11 @@ let scoreTextPlayer;
 let scoreTextPc;
 let announcementText;
 let ball;
+let boop;
+let crack;
 let singlePlayer;
 let splitScreen;
+let mute = false;
 
 const config = {
   type: Phaser.AUTO,
@@ -33,7 +39,8 @@ const config = {
     preload: preload,
     create: create,
     update: update
-  }
+  },
+  audio: mute
 };
 
 const game = new Phaser.Game(config);
@@ -45,6 +52,8 @@ function preload() {
   this.load.image('blue', blue);
   this.load.image('red', red);
   this.load.image('ball_img', ball_img);
+  this.load.audio('boop', boop_sound);
+  this.load.audio('crack', crack_sound);
 }
 
 function create() {
@@ -76,6 +85,9 @@ function create() {
   this.physics.add.collider(ball, player, hitPaddle, null, this);
   this.physics.add.collider(ball, pc, hitPaddle, null, this);
 
+  boop = this.sound.add("boop");
+  crack = this.sound.add("crack");
+  this.sound.setVolume(0.4);
   // Throws up a menu here for either single player or splitscreen
   splitScreen = this.add.sprite(400, 250, 'multiButton').setInteractive()
     .on('pointerover', function () {
@@ -151,7 +163,7 @@ function update() {
   // --------------- Score condition ----------------------
   if(ball.x==796)
   {
-    // TODO: fire off sound effect
+    boop.play();
     scorePc += 1;
     scoreTextPc.setText('Score: ' + scorePc);
     if (scorePc >= 5) {
@@ -165,7 +177,7 @@ function update() {
 
   if(ball.x==4)
   {
-    // TODO: fire off sound effect
+    boop.play();
     scorePlayer += 1;
     scoreTextPlayer.setText('Score: ' + scorePlayer);
     if (scorePlayer >= 5) {
@@ -187,11 +199,15 @@ function hitPaddle(ball,hitter)
   }
   if(hitter.name == 'player')
   {
+    crack.setDetune(velocityX);
+    crack.play(); // sound effect!
     velocityX=velocityX+50;
     velocityX=velocityX*-1;
     ball.setVelocityX(velocityX);
     hitter.setVelocityX(-1);
   } else {
+    crack.setDetune(-velocityX);
+    crack.play(); // sound effect!
     velocityX=velocityX-50;
     velocityX=velocityX*-1;
     ball.setVelocityX(velocityX);
