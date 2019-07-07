@@ -5,6 +5,8 @@ import background from './assets/background.png';
 import multiButton from './assets/multiButton.png';
 import singleButton from './assets/singleButton.png';
 import ball_img from './assets/ball.png';
+import speaker_img from './assets/speaker.png';
+import mute_img from './assets/mute.png';
 import boop_sound from './assets/boop.mp3';
 import crack_sound from './assets/crack.mp3';
 
@@ -13,7 +15,8 @@ import crack_sound from './assets/crack.mp3';
 let cursor;
 let player;
 let pc;
-let velocityX = Phaser.Math.Between(-100, 100);
+let plusOrMinus = Math.random() < 0.5 ? -1 : 1;
+let velocityX = plusOrMinus*Phaser.Math.Between(75, 150);
 let velocityY = 100;
 let scorePlayer = 0;
 let scorePc = 0;
@@ -23,9 +26,12 @@ let announcementText;
 let ball;
 let boop;
 let crack;
-let singlePlayer;
-let splitScreen;
-let mute = false;
+let singlePlayerButton;
+let splitScreenButton;
+let speaker;
+let mute;
+let splitScreenModeEnabled = true;
+
 
 const config = {
   type: Phaser.AUTO,
@@ -39,8 +45,7 @@ const config = {
     preload: preload,
     create: create,
     update: update
-  },
-  audio: mute
+  }
 };
 
 const game = new Phaser.Game(config);
@@ -52,6 +57,8 @@ function preload() {
   this.load.image('blue', blue);
   this.load.image('red', red);
   this.load.image('ball_img', ball_img);
+  this.load.image('speaker_img', speaker_img);
+  this.load.image('mute_img', mute_img);
   this.load.audio('boop', boop_sound);
   this.load.audio('crack', crack_sound);
 }
@@ -89,7 +96,7 @@ function create() {
   crack = this.sound.add("crack");
   this.sound.setVolume(0.4);
   // Throws up a menu here for either single player or splitscreen
-  splitScreen = this.add.sprite(400, 250, 'multiButton').setInteractive()
+  speaker = this.add.sprite(750, 350, 'speaker_img').setInteractive()
     .on('pointerover', function () {
       this.setTint(0xD3D3D3);
     })
@@ -97,12 +104,34 @@ function create() {
       this.clearTint();
     })
     .on('pointerdown', function () {
+      makeMute(true);
+    });
+  mute = this.add.sprite(750, 350, 'mute_img').setInteractive()
+    .on('pointerover', function () {
+      this.setTint(0xD3D3D3);
+    })
+    .on('pointerout', function () {
+      this.clearTint();
+    })
+    .on('pointerdown', function () {
+      makeMute(false);
+    });
+  mute.setVisible(false);
+  splitScreenButton = this.add.sprite(400, 250, 'multiButton').setInteractive()
+    .on('pointerover', function () {
+      this.setTint(0xD3D3D3);
+    })
+    .on('pointerout', function () {
+      this.clearTint();
+    })
+    .on('pointerdown', function () {
+      splitScreenModeEnabled = true;
       this.setTint(0xA9A9A9);
       announcementText.setText('Use the arrow keys and WS to move.');
       announcementText.setVisible(true);
       startGame();
     });
-  singlePlayer = this.add.sprite(400, 150, 'singleButton').setInteractive()
+  singlePlayerButton = this.add.sprite(400, 150, 'singleButton').setInteractive()
     .on('pointerover', function () {
       this.setTint(0xD3D3D3);
     })
@@ -110,6 +139,7 @@ function create() {
       this.clearTint();
     })
     .on('pointerdown', function () {
+      splitScreenModeEnabled = false; // disable WS controls
       this.setTint(0xA9A9A9);
       startGame()
     });
@@ -120,8 +150,11 @@ function startGame() {
   scoreTextPlayer.setText('Score: ' + scorePlayer);
   scorePc = 0;
   scoreTextPc.setText('Score: ' + scorePc);
-  singlePlayer.visible = false;
-  splitScreen.visible = false;
+  singlePlayerButton.visible = false;
+  splitScreenButton.visible = false;
+  mute.visible = false;
+  speaker.visible = false;
+
   // Give the ball horizontal and vertical movement.
   ball.setVelocityY(velocityY);
   ball.setVelocityX(velocityX);
@@ -144,22 +177,32 @@ function update() {
   {
     player.setVelocityY(0);
   }
-  // TODO: ----------- only do this IF splitscreen mode is enabled. ------------------
-  // TODO: show blinking message of controls!
-  // PC input
-  if(this.keyW.isDown)
-  {
-    pc.setVelocityY(-250);
+  if(splitScreenModeEnabled) {
+    // PC input
+    if(this.keyW.isDown)
+    {
+      pc.setVelocityY(-250);
+    }
+    else if(this.keyS.isDown)
+    {
+      pc.setVelocityY(250);
+    }
+    else
+    {
+      pc.setVelocityY(0);
+    }
+  } else {
+    // PC auto
+    if(pc.x >= ball.x - 220) { // wait until the ball gets close...
+      if (Phaser.Math.Between(1, 5) === 1) { // make it continue towards direction of ball every ~6 frames
+        if(pc.y < ball.y) {
+          pc.setVelocityY(250);
+        } else {
+          pc.setVelocityY(-250);
+        }
+      }
+    }
   }
-  else if(this.keyS.isDown)
-  {
-    pc.setVelocityY(250);
-  }
-  else
-  {
-    pc.setVelocityY(0);
-  }
-  // ----------------------------------------------------------------------------------
   // --------------- Score condition ----------------------
   if(ball.x==796)
   {
@@ -217,8 +260,9 @@ function hitPaddle(ball,hitter)
 
 function reset()
 {
-  velocityX=Phaser.Math.Between(-150, 150); // This is bad.  Make each direction have a min of like 80
-  velocityY=100;
+  plusOrMinus = Math.random() < 0.5 ? -1 : 1;
+  velocityX=plusOrMinus*Phaser.Math.Between(60, 120); // This is bad.  Make each direction have a min of like 80
+  velocityY=Phaser.Math.Between(80, 120);
   ball.x=400;
   ball.y=200;
   player.x=780;
@@ -242,8 +286,19 @@ function endGame()
   pc.x=20;
   pc.y=200;
   // TODO: Show a blinking message on who won for like 3-4 seconds then go back to menu.
-  singlePlayer.visible = true; // hopefully this is not clickable
-  splitScreen.visible = true; // hopefully this is not clickable
+  singlePlayerButton.visible = true; // hopefully this is not clickable
+  splitScreenButton.visible = true; // hopefully this is not clickable
   ball.setVelocityX(0);
   ball.setVelocityY(0);
+}
+
+function makeMute(muted) {
+  if(muted) {
+    mute.setVisible(true);
+    speaker.setVisible(false);
+  } else {
+    mute.setVisible(false);
+    speaker.setVisible(true);
+  }
+  game.sound.setMute(muted);
 }
